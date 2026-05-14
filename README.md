@@ -2,7 +2,7 @@
 
 A collection of scripts that help in the acquisition of android app data for forensic research. These scripts focus on the forensic analysis of a single app or app bundle and is not though out to be a full android acquisition tool.
 
-Note: These scripts were done with the help of AI.
+**Note:** These scripts were done with the help of AI.
 
 ## Features
 
@@ -53,7 +53,7 @@ Inside that directory you can find all your app studies, separated by app ID. Fo
 
 After creating your first case, you can go to the created case (e.g. `cases/com.example.app`) and explore the case.
 
-More information on how evidence is stored is in [evidence strucutre](##%20Evidence%20Structure)
+More information on how evidence is stored is in [Evidence Strucutre](#evidence-structure)
 
 ### 3. Create another snapshot
 
@@ -114,21 +114,21 @@ export CASES_DIR="/mnt/externalSSD/Forensics"
 ADB=/path/to/custom/adb CASES_DIR=/mnt/externalSSD/Forensics ./snapshot.sh snap my-case -d
 ```
 
-## Evidence structure
+## Evidence Structure
 
 All cases are stored with the following structure:
 
 - `data/`: Contains the data acquired for the defined apps bundle, separated by ID.
-  - `data/<com.example.app>/apk/`: Copy of the base APK and other split APKs, together with their SHA256 hashes.
-  - `data/<com.example.app>/app_data/`: All the data found by the acquisition script in each directory.
-  - `data/<com.example.app>/meta/`: Metadata about the app, like declared and granted permissions and dumpsys information.
-  - `data/<com.example.app>/network/`: Collects UID-specific security artefacts from `/data/misc/keystore` and `/data/misc/net`, as well as certificates found in the app files.
+  - `<com.example.app>/apk/`: Copy of the base APK and other split APKs, together with their SHA256 hashes.
+  - `<com.example.app>/app_data/`: All the data found by the acquisition script in each directory.
+  - `<com.example.app>/meta/`: Metadata about the app, like declared and granted permissions and dumpsys information.
+  - `<com.example.app>/network/`: Collects UID-specific security artefacts from `/data/misc/keystore` and `/data/misc/net`, as well as certificates found in the app files.
 - `reports/`: All reports created for this case go here, separated by name (all automatic reports are named with the current time).
   - `<report_name>/db/`: Information about the databases found from the pulled files. Created with `db_report.sh`.
   - `<report_name>/report.html`: The standalone HTML file with the summary of the findings, together with a database explorer (if the database data is provided previously).
-  - `case.json`: Metadata about the current case being studied. Has optional fields like `investigator` and `notes`.
-  - `manifest.sha256`: Manifest with all SHA256 file hashes and names.
-  - `packages.txt`: Information about the currently tracked app/package IDs.
-  - `snapshot.log`: Logged information about the time of each snapshot.
+- `case.json`: Metadata about the current case being studied. Has optional fields like `investigator` and `notes`.
+- `manifest.sha256`: Manifest with all SHA256 file hashes and names.
+- `packages.txt`: Information about the currently tracked app/package IDs.
+- `snapshot.log`: Logged information about the time of each snapshot.
 
 **Note:** The root of each case is a local Git repository. While the `data/` folder appears to be overwritten with each snapshot, the full history of every file is preserved in the Git logs, allowing for historical debugging of the app's state.
