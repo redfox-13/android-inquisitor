@@ -1,134 +1,215 @@
 # android-inquisitor
 
-A collection of scripts that help in the acquisition of android app data for forensic research. These scripts focus on the forensic analysis of a single app or app bundle and is not though out to be a full android acquisition tool.
+A collection of scripts for acquiring and analysing Android app data for forensic research. Focused on single-app or app-bundle analysis — not a full device acquisition tool.
 
-**Note:** These scripts were done with the help of AI.
-
-## Features
-
-- **Root Detection**: Automatic root detection method that tries to apply root privilege before acquiring data.
-- **Deep Acquisition**: The acquisition script searches multiple data directories, like `/data/data`, `/data/user_de` and `/storage/emulated` to pull from the device.
-- **Unique location finder**: Compares all acquisition directories and verifies if they point to a unique node (inode).
-- **Evidence Integrity**: All acquired files are passed through SHA256 to create a manifest with all file hashes, to verify file integrity.
-- **Versioning Behavior**: For every snapshot created, a commit is done using git as the base, creating an historical database of all files.
-- **SQLite Database finder**: Auxiliary script that creates a JSON file with all found databases inside the pulled directories.
-- **HTML report**: Another auxiliary script that generates a standalone, searchable report with manifest diffs, permission changes, and a database explorer.
+**Note:** These scripts were developed with the help of AI.
 
 ## Scripts
 
-1. `snapshot.sh`: The main script of the collection. Manages each case lifecycle: creation, snapshot behavior and git history.
-1. `acquisition.sh`: A script that interfaces with ADB to pull files, APKs and system metadata. Can be used as a standalone script.
-1. `db_report.sh`: A SQLite database analyzer that handles WAL/SHM journaling and transforms all findings into a JSON file.
-1. `report.sh`: The HTML file generator that produces a report on what happened on each snapshot.
+- [snapshot.sh](#snapshotsh) — case lifecycle management
+- [acquisition.sh](#acquisitionsh) — ADB data pull
+- [db-report.sh](#db-reportsh) — SQLite introspector
+- [report.sh](#reportsh) — HTML report generator
+- [activity-viewer.sh](#activity-viewersh) — activity launcher
+- [photo-timeline.sh](#photo-timelinesh) — file identity timeline
+
+---
 
 ## Requirements
 
-`ADB`: Android Debug Bridge installed and in PATH.
+- `adb` — Android Debug Bridge, in PATH
+- `git` — required for state tracking and versioning
+- `python3` — used for JSON processing and report generation
+- `sqlite3` — required for database parsing
 
-`Git`: Required for state tracking and versioning.
+## Configuration
 
-`Python 3`: Used for JSON processing and report generation.
-
-`SQLite3`: Required for database parsing.
-
-## Usage
-
-### 1. Start a new case
-
-Create a new case for the app you want to investigate.
+| Variable    | Default           | Description                   |
+| ----------- | ----------------- | ----------------------------- |
+| `ADB`       | `adb` (from PATH) | Path to a specific ADB binary |
+| `CASES_DIR` | `./cases`         | Root directory for all cases  |
 
 ```bash
-# Create a case for the app with ID com.example.app in emulator (-e)
-./snapshot.sh new-case com.example.app -e
-
-# or in connected device (-d)
-./snapshot.sh new-case com.example.app -d
-```
-
-After running this command a new directory named `cases` will appear.
-
-Inside that directory you can find all your app studies, separated by app ID. For example, all data for `com.example.app` can be found in `cases/com.example.app`.
-
-### 2. Do some research
-
-After creating your first case, you can go to the created case (e.g. `cases/com.example.app`) and explore the case.
-
-More information on how evidence is stored is in [Evidence Strucutre](#evidence-structure)
-
-### 3. Create another snapshot
-
-Whenever you require another snapshot of the app files, simply run:
-
-```bash
-# for emulator
-./snapshot.sh snap <case_name> -e
-
-# for connected device
-./snapshot.sh snap <case_name> -d
-```
-
-### Other uses
-
-Add another package to the case. Useful for apps that come in bundles.
-
-```bash
-./snapshot.sh add-package <case_id>
-```
-
-Create a report of the current commit for the chosen case.
-
-```bash
-./snapshot.sh report <case_id>
-```
-
-List all cases.
-
-```bash
-./snapshot.sh list
-```
-
-## Configuration (Environment Variables)
-
-You can override default behaviors by setting environment variables before running the scripts.
-
-|  Variable |     Default     | Description                                                          |
-| --------: | :-------------: | -------------------------------------------------------------------- |
-|       ADB | adb (from PATH) | Path to a specific ADB binary.                                       |
-| CASES_DIR |     ./cases     | The root directory where all forensic cases and evidence are stored. |
-
-Examples:
-
-```bash
-# Using a different ADB path
+# Custom ADB binary
 ADB=/path/to/custom/adb ./snapshot.sh snap my-case -d
 
-# Read the cases from an external storage device
+# Custom cases directory
 CASES_DIR=/mnt/externalSSD/Forensics ./snapshot.sh list
 
-# Keep using the external storage device for this session
+# Persist for the session
 export CASES_DIR="/mnt/externalSSD/Forensics"
-./snapshot.sh list
-./snapshot.sh snap com.example.app -d
-
-# Mix both
-ADB=/path/to/custom/adb CASES_DIR=/mnt/externalSSD/Forensics ./snapshot.sh snap my-case -d
 ```
+
+---
 
 ## Evidence Structure
 
-All cases are stored with the following structure:
+```
+cases/
+└── com.example.app/               ← git repository root
+    ├── data/
+    │   └── com.example.app/
+    │       ├── apk/               ← APK(s) + apk.sha256
+    │       ├── app_data/          ← pulled data directories
+    │       ├── meta/              ← dumpsys, permissions
+    │       └── network/           ← keystore/net files, cert paths
+    ├── reports/
+    │   └── <timestamp>/
+    │       ├── db/
+    │       │   ├── databases.json
+    │       │   └── databases.txt
+    │       └── report.html
+    ├── case.json                  ← case metadata (not git-tracked)
+    ├── manifest.sha256            ← SHA-256 of all files in data/
+    ├── packages.txt               ← tracked package IDs
+    └── snapshot.log               ← snapshot timestamps (not git-tracked)
+```
 
-- `data/`: Contains the data acquired for the defined apps bundle, separated by ID.
-  - `<com.example.app>/apk/`: Copy of the base APK and other split APKs, together with their SHA256 hashes.
-  - `<com.example.app>/app_data/`: All the data found by the acquisition script in each directory.
-  - `<com.example.app>/meta/`: Metadata about the app, like declared and granted permissions and dumpsys information.
-  - `<com.example.app>/network/`: Collects UID-specific security artefacts from `/data/misc/keystore` and `/data/misc/net`, as well as certificates found in the app files.
-- `reports/`: All reports created for this case go here, separated by name (all automatic reports are named with the current time).
-  - `<report_name>/db/`: Information about the databases found from the pulled files. Created with `db_report.sh`.
-  - `<report_name>/report.html`: The standalone HTML file with the summary of the findings, together with a database explorer (if the database data is provided previously).
-- `case.json`: Metadata about the current case being studied. Has optional fields like `investigator` and `notes`.
-- `manifest.sha256`: Manifest with all SHA256 file hashes and names.
-- `packages.txt`: Information about the currently tracked app/package IDs.
-- `snapshot.log`: Logged information about the time of each snapshot.
+The `data/` directory appears to be overwritten on each snapshot, but the full history of every file is preserved in the git log. `case.json` and `snapshot.log` are intentionally excluded from git tracking so analysts can add notes freely without affecting evidence integrity.
 
-**Note:** The root of each case is a local Git repository. While the `data/` folder appears to be overwritten with each snapshot, the full history of every file is preserved in the Git logs, allowing for historical debugging of the app's state.
+---
+
+## Script Reference
+
+### snapshot.sh
+
+Main entrypoint. Manages case lifecycle: creation, snapshots, git history, and reports.
+
+Each snapshot pulls all app data, builds a SHA-256 manifest, diffs it against the previous one, commits the result to git, and generates a report.
+
+```bash
+# Create a new case (emulator)
+./snapshot.sh new-case com.example.app -e
+
+# Create a new case (USB device)
+./snapshot.sh new-case com.example.app -d
+
+# Take a new snapshot
+./snapshot.sh snap com.example.app -e
+
+# Add a package to an existing case
+./snapshot.sh add-package com.example.app com.example.app.companion -e
+
+# Regenerate the latest report without snapshotting
+./snapshot.sh report com.example.app
+
+# List all cases
+./snapshot.sh list
+```
+
+Device flags: `-e` for emulator (default), `-d` for USB device.
+
+When creating a case, sibling packages (same base name) are detected automatically and you are prompted to include them.
+
+---
+
+### acquisition.sh
+
+Interfaces directly with ADB to pull app files, APKs, and system metadata into a structured output directory. Called automatically by `snapshot.sh`, but can also be used standalone.
+
+Pulls into `<out_dir>/`:
+
+- `app_data/` — full data directories (`/data/data`, `/data/user`, `/data/user_de`, `/data_mirror`, `/storage/emulated`) including WAL/SHM files
+- `apk/` — installed APK(s) with SHA-256 hashes
+- `meta/` — `dumpsys` package info, declared permissions, granted permissions
+- `network/` — UID-specific keystore/net files; cert/SSL paths noted from `app_data`
+
+```bash
+./acquisition.sh <package> <device_flag> <out_dir>
+
+# Examples
+./acquisition.sh com.example.app -e ./output
+./acquisition.sh com.example.app -d /mnt/cases/com.example.app/data/com.example.app
+```
+
+Root access is detected automatically, trying `adb root`, `su -c`, `su 0 -c`, and `su 0` in order. Without root, acquisition is partial.
+
+---
+
+### db-report.sh
+
+SQLite introspector. Walks all `.db` files in a case directory, extracts schema and row statistics, and writes structured output for use by `report.sh`.
+
+```bash
+./db-report.sh <case_dir> <report_name>
+
+# Example
+./db-report.sh ./cases/com.example.app 2024-01-15T10:00:00Z
+```
+
+Output goes to `<case_dir>/reports/<report_name>/db/`:
+
+- `databases.json` — full schema, column info, row counts, and sample rows for all databases found
+- `databases.txt` — plain text summary
+
+Handles WAL/SHM journaling by copying sidecar files before querying. Skips encrypted or corrupt files with a warning.
+
+---
+
+### report.sh
+
+Generates a standalone HTML report for a given snapshot. Called automatically by `snapshot.sh`, but can be run independently.
+
+```bash
+./report.sh <case_dir> <report_name>
+
+# Example
+./report.sh ./cases/com.example.app 2024-01-15T10:00:00Z
+```
+
+Output: `<case_dir>/reports/<report_name>/report.html`
+
+The report includes:
+
+- Case summary (packages, APK hash, snapshot count)
+- Git commit history
+- File manifest diff (added, removed, modified files since last snapshot)
+- Permission changes
+- Interactive database explorer (schema, row counts, sample data) — requires `db-report.sh` to have run first
+
+All data is embedded in the HTML file; no server required to view it.
+
+---
+
+### activity-viewer.sh
+
+Parses `dumpsys` output to list all activities registered for a package and lets you launch one interactively.
+
+```bash
+./activity-viewer.sh <package.name>
+
+# Example
+./activity-viewer.sh com.example.app
+```
+
+Displays a numbered menu of all activities found in the Activity Resolver Table. Select one to launch it on the connected device via `adb shell am start`.
+
+---
+
+### photo-timeline.sh
+
+Hash-deduplicates files from an Android directory (or a local directory), groups identical content by first-seen timestamp, and prints a timeline. Useful for analysing app image caches, contact photos, and similar directories.
+
+```bash
+# Pull from device and analyse
+./photo-timeline.sh <remote_path> [-d|-e]
+
+# Analyse a local directory directly
+./photo-timeline.sh <local_path>
+
+# Examples
+./photo-timeline.sh /data/data/com.example.app/cache/contact_photos -e
+./photo-timeline.sh /data/data/com.example.app/cache/contact_photos -d
+./photo-timeline.sh ./pulled_cache
+```
+
+Options:
+
+| Flag         | Description                                                  |
+| ------------ | ------------------------------------------------------------ |
+| `--no-image` | Skip inline image rendering                                  |
+| `--keep`     | Keep pulled files in `./photo_timeline_pull/` after analysis |
+
+Each unique content hash is assigned a deterministic human-readable name (e.g. `frozen-signal-3a7f`) for easy cross-reference. Files with the same content but different names or timestamps are grouped together, and any with a gap of more than one day between appearances are flagged as notable.
+
+Inline image rendering is supported for Kitty, iTerm2, WezTerm, and Sixel-capable terminals.

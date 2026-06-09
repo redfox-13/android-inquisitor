@@ -275,7 +275,7 @@ _do_snapshot() {
     REPORT_DIR="$case_dir/reports/$timestamp"
     mkdir -p "$REPORT_DIR/db"
 
-    "$SCRIPT_DIR/db_report.sh"  "$case_dir" "$timestamp" || log_warn "DB report issues"
+    "$SCRIPT_DIR/db-report.sh"  "$case_dir" "$timestamp" || log_warn "DB report issues"
     "$SCRIPT_DIR/report.sh"     "$case_dir" "$timestamp" || log_warn "HTML report issues"
 
     log_sep
@@ -402,7 +402,7 @@ cmd_report() {
 
     local timestamp
     timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-    "$SCRIPT_DIR/db_report.sh" "$case_dir" "$timestamp" || true
+    "$SCRIPT_DIR/db-report.sh" "$case_dir" "$timestamp" || true
     "$SCRIPT_DIR/report.sh"    "$case_dir" "$timestamp"
 }
 

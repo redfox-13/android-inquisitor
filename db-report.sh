@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# db_report.sh - SQLite introspector
+# db-report.sh - SQLite introspector
 # Walks all .db files in a case, extracts schema + stats, writes JSON + text
 #
-# Usage: ./db_report.sh <case_dir> <report_name>
+# Usage: ./db-report.sh <case_dir> <report_name>
 # Output: <case_dir>/reports/<report_name>/db/
 # -----------------------------------------------------------------------------
 set -euo pipefail
@@ -22,7 +22,7 @@ log_err()  { echo -e "${C_ERR}[Error]${C_RESET} $*" >&2; }
 log_step() { echo -e "\n${C_BOLD}-- $* ${C_RESET}" >&2; }
 log_sep()  { echo -e "${C_DIM}----------------------------------------${C_RESET}" >&2; }
 
-[[ $# -lt 2 ]] && { echo "Usage: db_report.sh <case_dir> <report_name>"; exit 1; }
+[[ $# -lt 2 ]] && { echo "Usage: db-report.sh <case_dir> <report_name>"; exit 1; }
 
 CASE_DIR="$1"
 REPORT_NAME="$2"
